@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  web:
+    build: ./nginx
+    image: tina1381/nginx-web:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: '256M'
+        reservations:
+          cpus: '0.25'
+          memory: '128M'
+
+  app:
+    build: ./flask
+    image: tina1381/flask-app:latest
+    volumes:
+      - ./data:/data
+      - ./wait-for-it.sh:/wait-for-it.sh
+      
+    depends_on:
+      - mysql
+    ports:
+      - "5000:5000"
+    entrypoint: ["./wait-for-it.sh", "mysql:3306", "--", "flask", "run", "--host=0.0.0.0", "--port=5000"]
+    environment:
+      - FLASK_ENV=development
+      - MYSQL_PASSWORD=password
+      - DATABASE_URL=mysql+pymysql://user:password@mysql/mydatabase
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: '512M'
+        reservations:
+          cpus: '0.50'
+          memory: '256M'
+
+  mysql:
+    image: tina1381/mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: mydatabase
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: '512M'
+        reservations:
+          cpus: '0.25'
+          memory: '256M'
+
+volumes:
+  mysql-data:
